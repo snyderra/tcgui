@@ -68,6 +68,13 @@ def parse_arguments():
 @app.route("/")
 def main():
     rules = get_active_rules()
+    allrule=rules[0].copy()
+    for k in (allrule.keys()):
+        v=set([r[k] for r in rules if r[k]])
+        if len(v) > 1:
+            allrule[k]="various"
+    allrule["name"]="all"
+    rules.insert(0,allrule)
     return render_template(
         "main.html", rules=rules, units=BANDWIDTH_UNITS, standard_unit=STANDARD_UNIT
     )
@@ -88,51 +95,61 @@ def new_rule(interface):
     rate_unit = request.form["rate_unit"]
 
     interface = filter_interface_name(interface)
+    if interface == "all":
+        interfaces=[x['name'] for x in get_active_rules()]
+    else:
+        interfaces = [interface]
 
-    # remove old setup
-    command = f"tc qdisc del dev {interface} root netem"
-    command = command.split(" ")
-    proc = subprocess.Popen(command)
-    proc.wait()
+    for interface in interfaces:
+        # remove old setup
+        command = f"tc qdisc del dev {interface} root netem"
+        command = command.split(" ")
+        proc = subprocess.Popen(command)
+        proc.wait()
 
-    # apply new setup
-    command = f"tc qdisc add dev {interface} root netem"
-    if rate != "":
-        command += f" rate {rate}{rate_unit}"
-    if delay != "":
-        command += f" delay {delay}ms"
-        if delay_variance != "":
-            command += f" {delay_variance}ms"
-    if loss != "":
-        command += f" loss {loss}%"
-        if loss_correlation != "":
-            command += f" {loss_correlation}%"
-    if duplicate != "":
-        command += f" duplicate {duplicate}%"
-    if reorder != "":
-        command += f" reorder {reorder}%"
-        if reorder_correlation != "":
-            command += f" {reorder_correlation}%"
-    if corrupt != "":
-        command += f" corrupt {corrupt}%"
-    if limit != "":
-        command += f" limit {limit}"
-    print(command)
-    command = command.split(" ")
-    proc = subprocess.Popen(command)
-    proc.wait()
+        # apply new setup
+        command = f"tc qdisc add dev {interface} root netem"
+        if rate != "":
+            command += f" rate {rate}{rate_unit}"
+        if delay != "":
+            command += f" delay {delay}ms"
+            if delay_variance != "":
+                command += f" {delay_variance}ms"
+        if loss != "":
+            command += f" loss {loss}%"
+            if loss_correlation != "":
+                command += f" {loss_correlation}%"
+        if duplicate != "":
+            command += f" duplicate {duplicate}%"
+        if reorder != "":
+            command += f" reorder {reorder}%"
+            if reorder_correlation != "":
+                command += f" {reorder_correlation}%"
+        if corrupt != "":
+            command += f" corrupt {corrupt}%"
+        if limit != "":
+            command += f" limit {limit}"
+        print(command)
+        command = command.split(" ")
+        proc = subprocess.Popen(command)
+        proc.wait()
     return redirect(url_for("main") + "#" + interface)
 
 
 @app.route("/remove_rule/<interface>", methods=["POST"])
 def remove_rule(interface):
     interface = filter_interface_name(interface)
+    if interface == "all":
+        interfaces=[x['name'] for x in get_active_rules()]
+    else:
+        interfaces = [interface]
 
-    # remove old setup
-    command = f"tc qdisc del dev {interface} root netem"
-    command = command.split(" ")
-    proc = subprocess.Popen(command)
-    proc.wait()
+    for interface in interfaces:
+        # remove old setup
+        command = f"tc qdisc del dev {interface} root netem"
+        command = command.split(" ")
+        proc = subprocess.Popen(command)
+        proc.wait()
     return redirect(url_for("main") + "#" + interface)
 
 
@@ -141,19 +158,26 @@ def filter_interface_name(interface):
 
 
 def get_active_rules():
-    proc = subprocess.Popen(["tc", "qdisc"], stdout=subprocess.PIPE)
-    output = proc.communicate()[0].decode()
-    lines = output.split("\n")[:-1]
-    rules = []
-    dev = set()
-    for line in lines:
-        arguments = line.split()
-        rule = parse_rule(arguments)
-        if rule["name"] and rule["name"] not in dev:
-            rules.append(rule)
-            dev.add(rule["name"])
-            rules.sort(key=lambda x: x["name"])
-    return rules
+    try:
+        proc = subprocess.Popen(["tc", "qdisc"], stdout=subprocess.PIPE)
+        output = proc.communicate()[0].decode()
+        lines = output.split("\n")[:-1]
+        rules = []
+        dev = set()
+        for line in lines:
+            arguments = line.split()
+            rule = parse_rule(arguments)
+            if rule["name"] and rule["name"] not in dev:
+                rules.append(rule)
+                dev.add(rule["name"])
+                rules.sort(key=lambda x: x["name"])
+        return rules
+    except:
+        d="""qdisc netem 8026: dev test1 root refcnt 5 limit 1000 delay 998ms loss 3% rate 41Kbit
+qdisc netem 8027: dev test2 root refcnt 5 limit 1000 delay 999ms loss 2% rate 42Kbit
+qdisc netem 8028: dev test3 root refcnt 5 limit 1000 delay 1s loss 1% rate 43Kbit
+qdisc mq 0: dev test4 root""".split("\n")
+        return list(map(parse_rule,[x.split() for x in d]))
 
 
 def parse_rule(split_rule):
@@ -189,6 +213,11 @@ def parse_rule(split_rule):
             rule["rate"] = split_rule[i + 1].split("Mbit")[0]
         elif argument == "delay":
             rule["delay"] = split_rule[i + 1]
+            if "ms" not in rule["delay"]: 
+                if '.' in rule["delay"]:
+                    rule["delay"]=str(int(float(rule["delay"][:-1])*1000))+'ms'
+                else:
+                    rule["delay"]=rule["delay"].replace("s","000ms")
             if len(split_rule) > (i + 2) and "ms" in split_rule[i + 2]:
                 rule["delayVariance"] = split_rule[i + 2]
         elif argument == "loss":
