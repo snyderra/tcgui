@@ -100,15 +100,15 @@ def new_rule(interface):
     else:
         interfaces = [interface]
 
-    for interface in interfaces:
+    for i in interfaces:
         # remove old setup
-        command = f"tc qdisc del dev {interface} root netem"
+        command = f"tc qdisc del dev {i} root netem"
         command = command.split(" ")
         proc = subprocess.Popen(command)
         proc.wait()
 
         # apply new setup
-        command = f"tc qdisc add dev {interface} root netem"
+        command = f"tc qdisc add dev {i} root netem"
         if rate != "":
             command += f" rate {rate}{rate_unit}"
         if delay != "":
