@@ -15,6 +15,9 @@
         <li><a href="#{{ rule['name'] }}">{{ rule['name'] }}</a></li>
         {% endfor %}
     </ul>
+    <p>Applies to the egress of each interface. Example: if each interface has a 1000ms delay the round trip between two interfaces for a ping will be ~2000ms</p>
+    <a href="https://man7.org/linux/man-pages/man8/tc-netem.8.html">tc-netem manpage</a>
+    <br>
     {% for rule in rules %}
     <div>
         <h2 id="{{ rule['name'] }}">{{ rule['name'] }}</h2>
