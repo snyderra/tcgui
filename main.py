@@ -174,8 +174,8 @@ def get_active_rules():
         return rules
     except:
         d="""qdisc netem 8026: dev test1 root refcnt 5 limit 1000 delay 998ms loss 3% rate 41Kbit
-qdisc netem 8027: dev test2 root refcnt 5 limit 1000 delay 999ms loss 2% rate 42Kbit
-qdisc netem 8028: dev test3 root refcnt 5 limit 1000 delay 1s loss 1% rate 43Kbit
+qdisc netem 8027: dev test2 root refcnt 5 limit 1000 delay 999ms 999ms loss 2% rate 42Kbit
+qdisc netem 8028: dev test3 root refcnt 5 limit 1000 delay 1s 1s loss 1% rate 43Kbit
 qdisc mq 0: dev test4 root""".split("\n")
         return list(map(parse_rule,[x.split() for x in d]))
 
@@ -218,8 +218,14 @@ def parse_rule(split_rule):
                     rule["delay"]=str(int(float(rule["delay"][:-1])*1000))+'ms'
                 else:
                     rule["delay"]=rule["delay"].replace("s","000ms")
-            if len(split_rule) > (i + 2) and "ms" in split_rule[i + 2]:
+            if len(split_rule) > (i + 2) and "s" in split_rule[i + 2] and "loss" not in split_rule[i + 2]:
                 rule["delayVariance"] = split_rule[i + 2]
+                print(rule["delayVariance"])
+                if "ms" not in rule["delayVariance"]: 
+                    if '.' in rule["delayVariance"]:
+                        rule["delayVariance"]=str(int(float(rule["delayVariance"][:-1])*1000))+'ms'
+                    else:
+                        rule["delayVariance"]=rule["delayVariance"].replace("s","000ms")
         elif argument == "loss":
             rule["loss"] = split_rule[i + 1]
             if len(split_rule) > (i + 2) and "%" in split_rule[i + 2]:
