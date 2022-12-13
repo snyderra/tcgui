@@ -80,6 +80,20 @@ def main():
     )
 
 
+@app.route("/do/", methods=["POST"])
+def do():
+    action=request.form["action"]
+    if "Start" == action:
+        command = ["systemctl","start","hostapd@*","-all"]
+    if "Stop" == action:
+        command = ["systemctl","stop","hostapd@*"]
+    if "Shutdown" == action:
+        command = ["shutdown","-h","now"]
+    proc = subprocess.Popen(command)
+    proc.wait()
+    return redirect(url_for("main"))
+
+
 @app.route("/new_rule/<interface>", methods=["POST"])
 def new_rule(interface):
     delay = request.form["Delay"]
