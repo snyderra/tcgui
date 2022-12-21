@@ -88,7 +88,7 @@ def do():
     if "Stop" == action:
         command = ["systemctl","stop","hostapd@*"]
     if "Shutdown" == action:
-        command = ["shutdown","-h","now"]
+        command = ["sudo","systemctl","halt"]
     proc = subprocess.Popen(command)
     proc.wait()
     return redirect(url_for("main"))
